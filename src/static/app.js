@@ -13,20 +13,50 @@ document.addEventListener("DOMContentLoaded", () => {
       // Clear loading message
       activitiesList.innerHTML = "";
 
+      // Clear activity select options except placeholder
+      Array.from(activitySelect.options).slice(1).forEach(o => o.remove());
+
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
         const activityCard = document.createElement("div");
         activityCard.className = "activity-card";
 
-        const spotsLeft = details.max_participants - details.participants.length;
+        const participantsArr = Array.isArray(details.participants) ? details.participants : [];
+        const spotsLeft = details.max_participants - participantsArr.length;
 
+        // Basic card content
         activityCard.innerHTML = `
           <h4>${name}</h4>
-          <p>${details.description}</p>
+          <p class="description">${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
         `;
 
+        // Participants section (bulleted list)
+        const participantsWrap = document.createElement("div");
+        participantsWrap.className = "participants";
+
+        const count = participantsArr.length;
+        const heading = document.createElement("h5");
+        heading.textContent = `Participants (${count})`;
+        participantsWrap.appendChild(heading);
+
+        if (count === 0) {
+          const empty = document.createElement("p");
+          empty.className = "empty";
+          empty.textContent = "No participants yet";
+          participantsWrap.appendChild(empty);
+        } else {
+          const ul = document.createElement("ul");
+          participantsArr.forEach((p) => {
+            const li = document.createElement("li");
+            li.textContent = p;
+            ul.appendChild(li);
+          });
+          participantsWrap.appendChild(ul);
+        }
+
+        activityCard.appendChild(participantsWrap);
         activitiesList.appendChild(activityCard);
 
         // Add option to select dropdown
