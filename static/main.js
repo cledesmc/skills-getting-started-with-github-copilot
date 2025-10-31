@@ -113,57 +113,67 @@ and displays the participant list as bullet points. It includes a counter and
 text when there are no participants.
 """
 
-(async function(){
-  const container = document.getElementById('activities');
-
+(function(){
   function el(tag, attrs = {}, ...children){
     const node = document.createElement(tag);
-    Object.entries(attrs).forEach(([k,v]) => { if(k === 'class') node.className = v; else if(k === 'html') node.innerHTML = v; else node.setAttribute(k,v); });
-    children.flat().forEach(c => { if (c == null) return; node.append(typeof c === 'string' ? document.createTextNode(c) : c); });
+    Object.entries(attrs).forEach(([k,v])=>{
+      if(k === 'class') node.className = v;
+      else if(k === 'html') node.innerHTML = v;
+      else node.setAttribute(k, v);
+    });
+    children.flat().forEach(c => {
+      if (c == null) return;
+      node.append(typeof c === 'string' ? document.createTextNode(c) : c);
+    });
     return node;
   }
 
-  function participantList(participants){
+  function safeId(name){
+    return 'act-' + name.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-_]/g,'');
+  }
+
+  function participantSection(participants){
     const wrap = el('div', {class:'participants'});
     wrap.append(el('h4', {}, `Participantes (${participants.length})`));
-    if(!participants.length){
-      wrap.append(el('div',{class:'empty'}, 'Aún no hay participantes'));
+    if(!participants || participants.length === 0){
+      wrap.append(el('div', {class:'empty'}, 'Aún no hay participantes'));
       return wrap;
     }
     const ul = el('ul');
     participants.forEach(p => {
-      const li = el('li', {}, p);
-      ul.appendChild(li);
+      ul.appendChild(el('li', {}, p));
     });
     wrap.appendChild(ul);
     return wrap;
   }
 
-  try{
-    const res = await fetch('/activities');
-    if(!res.ok) throw new Error('No se pudo cargar actividades');
-    const data = await res.json();
+  async function loadActivities(){
+    const container = document.getElementById('activities');
+    if(!container) return;
+    try{
+      const res = await fetch('/activities');
+      if(!res.ok) throw new Error('Failed to load activities');
+      const data = await res.json();
 
-    // data es un objeto con claves = nombre de actividad
-    Object.entries(data).forEach(([name, info])=>{
-      const card = el('article', {class:'card', role:'article', 'aria-labelledby': `act-${name}`});
+      Object.entries(data).forEach(([name, info]) => {
+        const id = safeId(name);
+        const card = el('article', {class:'card', role:'article', 'aria-labelledby': id});
+        const title = el('h3', {id}, name);
+        const meta = el('div', {class:'meta'}, info.schedule || 'Horario no disponible');
+        const desc = el('div', {class:'description'}, info.description || '');
+        const actions = el('div', {class:'actions'},
+          el('div', {}, el('strong', {}, `Máx: ${info.max_participants || '—'}`)),
+          el('button', {class:'signup-btn', type:'button', onclick: `alert('Usa la API para inscribir estudiantes')`}, 'Inscribirse')
+        );
 
-      const title = el('h3', {id: `act-${name}`}, name);
-      const meta = el('div', {class:'meta'}, el('span', {}, info.schedule || 'Horario no disponible'));
-
-      const desc = el('div', {class:'description'}, info.description || '');
-
-      const actions = el('div', {class:'actions'},
-        el('div', {}, el('strong', {}, `Máx: ${info.max_participants || '—'}`)),
-        el('button', {class:'signup-btn', type:'button', onclick: `alert('Usa la API para inscribir estudiantes')`}, 'Inscribirse')
-      );
-
-      card.append(title, meta, desc, actions, participantList(info.participants || []));
-      container.appendChild(card);
-    });
-
-  }catch(err){
-    container.appendChild(el('div',{class:'empty'}, 'Error al cargar actividades.'));
-    console.error(err);
+        card.append(title, meta, desc, actions, participantSection(info.participants || []));
+        container.appendChild(card);
+      });
+    }catch(e){
+      container.appendChild(el('div', {class:'empty'}, 'Error al cargar actividades.'));
+      console.error(e);
+    }
   }
+
+  document.addEventListener('DOMContentLoaded', loadActivities);
 })();
